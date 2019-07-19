@@ -2,8 +2,11 @@
 // Click here and start typing.
 package main
 
-import "fmt"
-import _ "github.com/avdrobotov/testforjob/cache"
+import (
+	"fmt"
+
+	_ "github.com/avdrobotov/testforjob/cache"
+)
 
 func main() {
 	fmt.Println("Hello, 世界")
