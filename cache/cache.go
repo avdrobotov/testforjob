@@ -68,8 +68,36 @@ func (c *Cache) Add(key string, value interface{}) (err error) {
 		if c.mapAllElements[key].Lavel == 1 {
 			c.mapElements[key] = &value
 			c.mapAllElements[key].Old = minOld
-		}else{
-			
+		} else {
+			fmkey := strNotFound
+			fmold := math.MaxInt32
+
+			for key, item := range c.mapAllElements {
+				// search item for down to second level
+				if item.Old < fmold && item.Lavel == 1 {
+					fmold = item.Old
+					fmkey = key
+				}
+			}
+
+			if fmkey != strNotFound {
+				svalue := c.mapElements[fmkey]
+				skey := fmkey
+				sv := *svalue
+
+				c.connection, err = sql.Open("sqlite3", c.connectionString)
+				if err == nil {
+					var result sql.Result
+					defer c.connection.Close()
+					result, err = c.connection.Exec("insert into `Hache` (`Hache`, `Value`) values ($1, $2)",
+						skey, sv)
+					fmt.Println(result.RowsAffected())
+					fmt.Printf("Down %+v\n", skey, sv)
+				}
+			}
+			c.mapElements[key] = &value
+			c.mapAllElements[key].Old = minOld
+			c.mapAllElements[key].Lavel = 1
 		}
 	} else {
 		if len(c.mapElements) < c.maxElementsFirstLavel {
@@ -104,6 +132,10 @@ func (c *Cache) Add(key string, value interface{}) (err error) {
 		}
 	}
 
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+
 	return err
 }
 
@@ -127,14 +159,22 @@ func (c *Cache) Get(key string) (value *interface{}, err error) {
 			c.connection, err = sql.Open("sqlite3", c.connectionString)
 			if err == nil {
 				defer c.connection.Close()
-				// _, err = c.connection.Query("CREATE TABLE `Hache` ( `ID` INTEGER PRIMARY KEY AUTOINCREMENT, `Hache` TEXT NOT NULL UNIQUE, `Value` BLOB, `Old` INTEGER )")
-				// if err == nil {
-				// }
+				rows, err := c.connection.Query("select `Value` from Hache where `Hache`=$1", key)
+				if err == nil {
+					defer rows.Close()
+					if rows.Next() {
+						err = rows.Scan(value)
+					}
+				}
 			}
 		}
 	} else {
 		err = errors.New("Not found")
-
 	}
+
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+
 	return value, err
 }
